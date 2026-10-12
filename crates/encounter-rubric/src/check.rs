@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 
 use crate::schema::Gated;
-use crate::{Breaks, Datum, Encounter, Level, StencilShape, Travel, Trigger, difficulty};
+use crate::{Breaks, Datum, Encounter, Level, Mode, StencilShape, Travel, Trigger, difficulty};
 
 /// What an encounter names that it does not have (an ability's NPC, a
 /// pet's owner, a trigger's NPC, phase or event), and what it says that
@@ -486,10 +486,10 @@ impl Check<'_> {
             }
         }
         if let Some([x0, y0, x1, y1]) = map.crop
-            && !([x0, y0, x1, y1].iter().all(|v| v.is_finite()) && x0 != x1 && y0 != y1)
+            && !([x0, y0, x1, y1].iter().all(|v| v.is_finite()) && x0 < x1 && y0 < y1)
         {
             self.out
-                .push("map.crop is no box: its corners must differ in X and in Y".into());
+                .push("map.crop is no box: [x0, y0, x1, y1] needs x0 < x1 and y0 < y1".into());
         }
         for (what, kept, left) in [
             ("group", &map.include_groups, &map.exclude_groups),
@@ -509,6 +509,8 @@ impl Check<'_> {
         if map.exposure.is_some_and(|x| !positive(x)) {
             self.out.push("map.exposure is not above 0".into());
         }
+        // Which fade names each group and model, the first by key.
+        let mut faded: BTreeMap<(&str, u32), &str> = BTreeMap::new();
         for (k, f) in &map.fade {
             let what = format!("map.fade.{k}");
             if f.group.is_some() == f.model.is_some() {
@@ -523,7 +525,25 @@ impl Check<'_> {
                     f.alpha
                 ));
             }
+            for (word, id, left) in [
+                ("group", f.group, &map.exclude_groups),
+                ("model", f.model, &map.exclude_models),
+            ] {
+                let Some(id) = id else { continue };
+                if left.contains(&id) {
+                    self.out.push(format!(
+                        "{what} fades {word} {id}, which the map leaves out"
+                    ));
+                }
+                if let Some(other) = faded.insert((word, id), k) {
+                    self.out.push(format!(
+                        "{what} fades {word} {id}, which map.fade.{other} fades too"
+                    ));
+                }
+            }
         }
+        // Which area is each boss's court, the first by key.
+        let mut courts: BTreeMap<u32, &str> = BTreeMap::new();
         for (k, a) in &map.area {
             let what = format!("map.area.{k}");
             if a.shape.is_empty() {
@@ -532,15 +552,14 @@ impl Check<'_> {
             for (i, s) in a.shape.iter().enumerate() {
                 self.shape(format!("{what}.shape[{i}]"), s);
             }
-            let heights = [a.far, a.home, a.near];
-            if heights.iter().flatten().any(|v| !positive(*v)) {
+            // Every altitude, the unsaid ones as a reader fills them.
+            let [far, home, near] = a.altitudes(&self.e.view);
+            if [far, home, near].iter().any(|v| !positive(*v)) {
                 self.out
                     .push(format!("{what} has an altitude that is not above 0"));
-            }
-            let given: Vec<f32> = heights.into_iter().flatten().collect();
-            if given.windows(2).any(|w| w.first() > w.get(1)) {
+            } else if !(far <= home && home <= near) {
                 self.out.push(format!(
-                    "{what}'s altitudes are out of order: far ≤ home ≤ near"
+                    "{what}'s altitudes are out of order: far {far} ≤ home {home} ≤ near {near} does not hold (unsaid ones are the view's)"
                 ));
             }
             if a.turn.is_some_and(|t| !t.is_finite()) {
@@ -550,6 +569,13 @@ impl Check<'_> {
             if a.ceiling.is_some_and(|c| !positive(c)) {
                 self.out
                     .push(format!("{what} has a ceiling that is not above 0"));
+            }
+            if let Some(id) = a.encounter
+                && let Some(other) = courts.insert(id, k)
+            {
+                self.out.push(format!(
+                    "{what} is encounter {id}'s court, as map.area.{other} is"
+                ));
             }
         }
         for (k, p) in &map.path {
@@ -572,6 +598,11 @@ impl Check<'_> {
             if p.points.iter().flatten().any(|v| !v.is_finite()) {
                 self.out
                     .push(format!("{what} has a point that is not a number"));
+            }
+            if p.spell.is_some() && p.mode != Mode::Leap {
+                self.out.push(format!(
+                    "{what} names a spell, but only a leap's device casts one"
+                ));
             }
         }
         if let Some(t) = &map.transition {

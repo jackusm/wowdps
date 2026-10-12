@@ -16,12 +16,17 @@ difficulty at one tier, plus the replay's art formats (`floor`,
   `Tier::Base` with no curated file; the embedded test resolves every
   encounter at every tier.
 - **Maps are base.** An encounter's map and view (its stencil, `ppy`,
-  glows, rooms, places and the events they break on) and any NPC the draft
-  lacks or has wrong live in its instance's `instance.toml`
-  (`[encounter.<id>.map]`, `.view`, `.npc`). A room looks and changes the
-  same at every tier. So is a dungeon level (`[level.<ui_map>]`: the same
-  `Map`, a `View`, `travel`), which no curated or user set may give, and
-  an arena's or a level's areas, paths and transition.
+  glows, rooms, places and the events they break on, its areas, paths and
+  transition), its `travel` and any NPC the draft lacks or has wrong live
+  in its instance's `instance.toml` (`[encounter.<id>.map]`, `.view`,
+  `.travel`, `.npc`), so the base alone draws every room whole. A curated
+  or user set may still amend an arena's map and view (the layer stack
+  lets a set amend anything), never a level's.
+- **Levels are the base's alone.** A dungeon level (`[level.<ui_map>]`:
+  the same `Map`, a `View`, `travel`) lives in the base's instance file;
+  a set's instance file giving one is refused, and a set's `[defaults]`
+  skip levels. The embedded test holds every level clean, and every
+  court's encounter posted on its level, but for the exceptions it names.
 - **Drafts and `placed` are generated** on the replay branch
   (`tools/gen-rubric.sh`, `tools/gen-placed-spells.sh` live there) and
   committed here. Never hand-edit a `*.draft.toml` or

@@ -43,6 +43,10 @@ name = "Vexamus's court"
 shape = [{ center = [1818, -2779], radius = 32 }]
 encounter = 2562
 
+# Echo of Doragosa's draft says UiMap 2099 (the floors cache's level 3,
+# whose box holds this court too), but the log posts the fight on 2097:
+# every player post of it on both runs is here, none on 2099. So the
+# court is on this level, an exception the embedded test names.
 [level.2097.map.area.doragosa-court]
 name = "Echo of Doragosa's court"
 shape = [{ center = [1480, -3194], radius = 50 }]

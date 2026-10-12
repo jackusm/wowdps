@@ -1108,7 +1108,7 @@ pub(crate) fn every_key() -> Encounter {
                         mode,
                         width: Some(1.0),
                         speed: Some(1.0),
-                        spell: Some(1),
+                        spell: (mode == Mode::Leap).then_some(1),
                         points: vec![[0.0, 0.0], [1.0, 1.0]],
                     };
                     (i.to_string(), path)
@@ -2512,17 +2512,24 @@ fn a_level_is_the_bases_alone() {
     );
     let errs = r.clone().with_curated("pack", file()).unwrap_err();
     assert!(errs[0].contains("a level is the base's alone"), "{errs:?}");
-    // A user's season defaults never reach a level.
-    let user = r.with_user(owned(&[(
-        "s/season.toml",
-        "schema = 1\n[defaults.view]\nturn = 9\n",
-    )]));
+    // A set may still amend an arena, as the layer stack lets it amend
+    // anything: a user's season defaults and their drawing of an
+    // encounter reach its arena, never a level, even one with an area of
+    // the same key.
+    let user = r.with_user(owned(&[
+        ("s/season.toml", "schema = 1\n[defaults.view]\nturn = 9\n"),
+        (
+            "s/raid/instance.toml",
+            "schema = 1\n[encounter.3492.map.area.court]\nshape = [{ center = [1, 1], radius = 9 }]\n",
+        ),
+    ]));
     assert!(user.user_errors().is_empty(), "{:?}", user.user_errors());
-    assert_eq!(user.level(2097).unwrap().unwrap().view.turn, None);
-    assert_eq!(
-        user.encounter(3492, None).unwrap().unwrap().view.turn,
-        Some(9.0)
-    );
+    let arena = user.encounter(3492, None).unwrap().unwrap();
+    assert_eq!(arena.view.turn, Some(9.0));
+    assert_eq!(arena.map.area["court"].shape[0].radius, Some(9.0));
+    let level = user.level(2097).unwrap().unwrap();
+    assert_eq!(level.view.turn, None);
+    assert_eq!(level.map.area["court"].shape[0].radius, None);
 }
 
 #[test]
@@ -2530,9 +2537,9 @@ fn a_bad_area_path_fade_or_crop_is_found() {
     let bad = r#"
 [level.2097.map]
 ui_map = 2098
-crop = [1, 2, 1, 5]
+crop = [5, 2, 1, 6]
 include_groups = [4]
-exclude_groups = [4]
+exclude_groups = [4, 1]
 exposure = 0
 transition = { after = -1, port_yd = 0 }
 
@@ -2554,10 +2561,21 @@ far = 2
 home = 1.5
 near = 0
 
+[level.2097.map.area.too-high]
+shape = [{ center = [0, 0], radius = 5 }]
+home = 10
+encounter = 7
+
+[level.2097.map.area.too-near]
+shape = [{ center = [0, 0], radius = 5 }]
+near = 0.8
+encounter = 7
+
 [level.2097.map.path.astray]
 from = "nowhere"
 to = "nowhere"
 speed = 0
+spell = 5
 points = [[0, nan]]
 
 [level.2097.map.glow.lit]
@@ -2574,18 +2592,25 @@ mount = -14
         "map.ui_map names UiMap 2098, not the level's own 2097",
         "travel has a speed that is not above 0",
         "map.glow.lit names event \"erupts\", which the level does not have",
-        "map.crop is no box",
+        "map.crop is no box: [x0, y0, x1, y1] needs x0 < x1 and y0 < y1",
         "map: group 4 is both included and excluded",
         "map.exposure is not above 0",
         "map.fade.both names both of `group` and `model`",
+        "map.fade.both fades group 1, which the map leaves out",
         "map.fade.opaque has an alpha of 1, not above 0 and under 1",
+        "map.fade.opaque fades model 2, which map.fade.both fades too",
         "map.area.empty has no shape",
         "map.area.upside-down has an altitude that is not above 0",
-        "map.area.upside-down's altitudes are out of order",
+        // Unsaid altitudes are the view's, and checked so: the season's
+        // zoom 1.15, the closest 8, the furthest 1.
+        "map.area.too-high's altitudes are out of order: far 1 ≤ home 10 ≤ near 8",
+        "map.area.too-near's altitudes are out of order: far 1 ≤ home 1.15 ≤ near 0.8",
+        "map.area.too-near is encounter 7's court, as map.area.too-high is",
         "map.path.astray names area \"nowhere\", which the map does not have",
         "map.path.astray runs from area \"nowhere\" to itself",
         "map.path.astray has a width or a speed not above 0",
         "map.path.astray has a point that is not a number",
+        "map.path.astray names a spell, but only a leap's device casts one",
         "map.transition's `after` is not 0 or more seconds",
         "map.transition's `port_yd` is not above 0",
     ] {
@@ -2595,7 +2620,21 @@ mount = -14
         );
     }
     // Each path end is found missing once, and nothing else is said.
-    assert_eq!(problems.len(), 18, "{problems:#?}");
+    assert_eq!(problems.len(), 23, "{problems:#?}");
+    // A reader's altitudes: the area's own, else the view's, else 1, 1.15
+    // and 8.
+    let l = r.level(2097).unwrap().unwrap();
+    let view = View {
+        zoom: Some(2.0),
+        zoom_max: Some(6.0),
+        ..View::default()
+    };
+    assert_eq!(l.map.area["too-high"].altitudes(&view), [1.0, 10.0, 6.0]);
+    assert_eq!(l.map.area["empty"].altitudes(&view), [1.0, 2.0, 6.0]);
+    assert_eq!(
+        l.map.area["empty"].altitudes(&View::default()),
+        [Area::FAR, Area::HOME, Area::NEAR]
+    );
     // A fade with neither, and a ground that is no number.
     let r = Rubric::from_files(leveled(
         "[level.2097.map]\nground = nan\n[level.2097.map.fade.none]\nalpha = 0.5\n",
@@ -2651,6 +2690,14 @@ fn the_embedded_rubric_resolves_and_checks_every_level() {
             })
             .collect()
     };
+    // A court's encounter is posted on its level: its map's UiMap is the
+    // level's key. The exceptions, each the level the log posts the fight
+    // on where the encounter's map says another:
+    // - Echo of Doragosa (2565): its draft says UiMap 2099 (the floors
+    //   cache's Algeth'ar level 3, whose box holds the court too), but
+    //   every player post of the fight on both stored runs (6,001 and
+    //   6,731) is on 2097, none on 2099.
+    let posted_elsewhere: [(u32, u32); 1] = [(2565, 2097)];
     let levels = r.levels();
     assert!(levels.len() >= 7, "{} levels", levels.len());
     for (ui_map, s, i) in levels {
@@ -2662,6 +2709,24 @@ fn the_embedded_rubric_resolves_and_checks_every_level() {
                         .map(|p| format!("level {ui_map}: {p}")),
                 );
                 problems.extend(owned_by(format!("level {ui_map}"), &s.id, &i.slug, &l.map));
+                for (k, a) in &l.map.area {
+                    let Some(id) = a.encounter else { continue };
+                    let on = r
+                        .encounter_at(id, None, Tier::Base)
+                        .and_then(Result::ok)
+                        .and_then(|e| e.map.ui_map);
+                    let excepted = posted_elsewhere.contains(&(id, ui_map));
+                    if (on == Some(ui_map)) == excepted {
+                        problems.push(format!(
+                            "level {ui_map}: area {k}'s encounter {id} is on UiMap {on:?}{}",
+                            if excepted {
+                                ", so its exception is stale"
+                            } else {
+                                ""
+                            }
+                        ));
+                    }
+                }
             }
             Some(Err(e)) => problems.push(e),
             None => problems.push(format!("level {ui_map} is listed and not answered")),
@@ -2678,4 +2743,34 @@ fn the_embedded_rubric_resolves_and_checks_every_level() {
         }
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+/// Every embedded level as it resolves, written out whole: a later
+/// `[defaults.travel]`, a season's `[defaults.map]` or `[defaults.view]`,
+/// or an edit to a level shows here, line by line. `WOWDPS_BLESS=1`
+/// writes the fixture anew from this build.
+#[test]
+fn every_level_resolves_as_its_fixture_says() {
+    let r = Rubric::embedded().unwrap_or_else(|e| panic!("{}", e.join("\n")));
+    let mut out = String::new();
+    for (ui_map, s, i) in r.levels() {
+        let l = r.level(ui_map).unwrap().unwrap();
+        out.push_str(&format!("== {ui_map} {}/{}\n{l:#?}\n", s.id, i.slug));
+    }
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/resolved-levels.txt");
+    if std::env::var_os("WOWDPS_BLESS").is_some() {
+        std::fs::write(path, &out).unwrap();
+        return;
+    }
+    let want = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("{path}: {e}; run with WOWDPS_BLESS=1"));
+    for (n, (w, g)) in want.lines().zip(out.lines()).enumerate() {
+        assert_eq!(
+            w,
+            g,
+            "fixtures/resolved-levels.txt line {}; if the change is meant, run with WOWDPS_BLESS=1",
+            n + 1
+        );
+    }
+    assert_eq!(want.lines().count(), out.lines().count());
 }

@@ -200,9 +200,9 @@ pub struct Map {
     /// otherwise or not at all: a fountain's pool, the channel it runs down.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub glow: BTreeMap<String, Glow>,
-    /// The world box the render covers, `[x0, y0, x1, y1]`: where the
-    /// heuristic frames the wrong thing and a stencil is more than wanted.
-    /// Unsaid, the renderer's own framing.
+    /// The world box the render covers, `[x0, y0, x1, y1]` with `x0 < x1`
+    /// and `y0 < y1`: where the heuristic frames the wrong thing and a
+    /// stencil is more than wanted. Unsaid, the renderer's own framing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub crop: Option<[f32; 4]>,
     /// WMO group uids drawn although a rule would leave them out.
@@ -314,7 +314,7 @@ impl<'de> Deserialize<'de> for Datum {
 /// Its altitudes are multiples of its fit, the view that shows its shapes'
 /// bounds whole: `far` the furthest the camera goes over it, `home` where
 /// it rests, `near` the closest (`far ≤ home ≤ near`). Unsaid, the floor's
-/// view's: `home` its `zoom`, `near` its `zoom_max`, `far` 1.
+/// view's: `home` its `zoom`, `near` its `zoom_max`, `far` 1 (`altitudes`).
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Area {
@@ -343,6 +343,25 @@ pub struct Area {
 }
 
 impl Area {
+    /// `far` unsaid: the whole area.
+    pub const FAR: f32 = 1.0;
+    /// `home` unsaid with the view's `zoom` unsaid: the seasons' default.
+    pub const HOME: f32 = 1.15;
+    /// `near` unsaid with the view's `zoom_max` unsaid: the replay's closest.
+    pub const NEAR: f32 = 8.0;
+
+    /// Its altitudes, `[far, home, near]`, those unsaid filled from `view`:
+    /// `far` 1, `home` the view's `zoom` (else 1.15), `near` its `zoom_max`
+    /// (else 8). What a reader frames it with; `crate::check` holds them
+    /// above 0 and in order, so `home.clamp(far, near)` never panics.
+    pub fn altitudes(&self, view: &View) -> [f32; 3] {
+        [
+            self.far.unwrap_or(Area::FAR),
+            self.home.or(view.zoom).unwrap_or(Area::HOME),
+            self.near.or(view.zoom_max).unwrap_or(Area::NEAR),
+        ]
+    }
+
     /// Its shapes' world bounds, `[x0, y0, x1, y1]`: its fit. `None` with
     /// no shape that is one (`crate::check` says which).
     pub fn bounds(&self) -> Option<[f32; 4]> {
@@ -372,7 +391,7 @@ pub struct Path {
     /// both ways.
     pub from: String,
     pub to: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Mode::is_run")]
     pub mode: Mode,
     /// Yards across; unsaid, a single file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -380,7 +399,8 @@ pub struct Path {
     /// Yards a second, over the season's for its `mode` (`Travel`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speed: Option<f32>,
-    /// The spell a leap's device casts (a launcher, a jump pad).
+    /// The spell a leap's device casts (a launcher, a jump pad); only a
+    /// leap has one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spell: Option<u32>,
     /// The way between its ends, world X and Y, `from`'s end first; unsaid,
@@ -410,6 +430,12 @@ pub enum Mode {
     Vehicle,
     /// Thrown: a launcher, a jump pad, a drop.
     Leap,
+}
+
+impl Mode {
+    fn is_run(&self) -> bool {
+        *self == Mode::Run
+    }
 }
 
 /// The season's speeds, yards a second, a path goes at by its mode

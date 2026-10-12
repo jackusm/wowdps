@@ -92,21 +92,24 @@ that is not per encounter.
   encounter's `map` and `view` by DungeonEncounterID, however hand-made,
   and what changes the map in the fight: its `room`s, `place`s and the
   `event`s they and its layers key on. It also gives an `npc` the draft
-  lacks or has wrong (`INSTANCE_TABLES`). Any other table there, or an id
-  with no files, is an error. A room should look and change the same, with
-  the same NPCs in it, at every tier.
+  lacks or has wrong and the arena's own `travel` (`INSTANCE_TABLES`). Any
+  other table there, or an id with no files, is an error. The base alone
+  draws every room whole, with the same NPCs in it; a curated or user set
+  may still amend an arena's map and view.
 - **A dungeon's level is a map too.** An instance file's
   `[level.<ui_map>]` (`LEVEL_TABLES`: `map`, `view`, `travel`) resolves
   over the season's and the instance's `[defaults]` alone, never a
   difficulty or a set, into a `Level` holding the same `Map` an
   encounter's does (`Rubric::level`, `levels`, `check_level`). Any map,
-  an arena's or a level's, may name its areas (with altitudes), the paths
-  between them (with a mode) and a `transition`, and the render's `crop`,
-  `include_*`, `fade`, `ground` and `exposure`: the vocabulary a map
-  editor writes ([Give The Map A Vocabulary Per Level And Per Area](../decisions/map-vocabulary-per-level-and-area.md)).
-  `gate_map` gates every map's named entries, and
-  `fixtures/resolved-maps.txt` holds every encounter's map and view to
-  what they resolved to before.
+  an arena's or a level's, may name its areas (with altitudes a reader
+  fills with `Area::altitudes`), the paths between them (with a mode) and
+  a `transition`, and the render's `crop`, `include_*`, `fade`, `ground`
+  and `exposure`: the vocabulary a map editor writes ([Give The Map A Vocabulary Per Level And Per Area](../decisions/map-vocabulary-per-level-and-area.md)).
+  A set may amend an arena's map, never a level's. `gate_map` gates every
+  map's named entries; `fixtures/resolved-maps.txt` holds every
+  encounter's map and view to what they resolved to before, and
+  `fixtures/resolved-levels.txt` every level as it resolves now
+  (`WOWDPS_BLESS=1` rewrites it).
 - **Typos are errors.** Every struct is `deny_unknown_fields`, and errors
   carry the encounter's file. `check` (its own module, a method per
   section) reports names an encounter uses but does not have: an

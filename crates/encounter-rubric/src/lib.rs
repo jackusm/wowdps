@@ -57,12 +57,12 @@
 //! A dungeon's LEVELS are the instance file's `[level.<ui_map>]`
 //! (`Rubric::level`, `levels`), each read over the season's and the
 //! instance's `[defaults]` (their `map`, `view` and `travel`) and never
-//! over a difficulty or a curated or user file: like an encounter's map, a
-//! level is the base's. Its `map` is the same `Map` an encounter's is, so a
-//! reader draws a raid's arena and a dungeon's level with one type, and
-//! either may name the places the camera knows (`area`), the ways between
-//! them (`path`) and what the replay does while the log is quiet
-//! (`transition`).
+//! over a difficulty or a curated or user file: a level is the base's
+//! alone, where a set may still amend an arena's map. Its `map` is the
+//! same `Map` an encounter's is, so a reader draws a raid's arena and a
+//! dungeon's level with one type, and either may name the places the
+//! camera knows (`area`), the ways between them (`path`) and what the
+//! replay does while the log is quiet (`transition`).
 //!
 //! The journal's words for each ability are not in the repository: they
 //! live in a per-machine sidecar (`text`) a reader lays over an encounter
@@ -107,9 +107,10 @@ pub const SCHEMA: u32 = 1;
 
 /// What an instance file's `[encounter.<id>]` may hold: the encounter's map,
 /// how it is first shown, what changes it in the fight (rooms off it, its
-/// fixed places, and the events its layers, rooms and places key on), and
-/// its NPCs where the draft lacks one or has it wrong.
-const INSTANCE_TABLES: [&str; 6] = ["map", "view", "room", "place", "event", "npc"];
+/// fixed places, and the events its layers, rooms and places key on), its
+/// NPCs where the draft lacks one or has it wrong, and the speeds its paths
+/// go at where the season's do not fit the arena (`travel`).
+const INSTANCE_TABLES: [&str; 7] = ["map", "view", "room", "place", "event", "npc", "travel"];
 
 /// What an instance file's `[level.<ui_map>]` may hold, and what a level
 /// reads of the season's and the instance's `[defaults]`: its map, the
