@@ -222,6 +222,11 @@ impl Rubric {
                 else {
                     return Err(one(format!("the base has no {season}/{instance}")));
                 };
+                if t.contains_key("level") {
+                    return Err(one(format!(
+                        "`level`: a level is the base's alone; a {tier} layer gives none"
+                    )));
+                }
                 let encounter = match t.remove("encounter") {
                     Some(Value::Table(e)) => e,
                     None => Table::new(),

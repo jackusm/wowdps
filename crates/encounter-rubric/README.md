@@ -53,11 +53,16 @@ by design (How an encounter resolves, below).
     Prey, and Nek'zali's well, are here;
   - what an NPC is (`npc`), laid key by key over the draft's: Ula'tek's
     Venomous Heart, which the journal lists no creature for, sharing
-    Ula'tek's health.
+    Ula'tek's health;
+  - the speeds its paths go at, where the season's do not fit the arena
+    (`travel`).
 
-  A map and its NPCs are part of the base (below), so a room looks and
-  changes the same, with the same NPCs in it, at every tier. `gen-rubric`
-  writes an instance file only when it is missing.
+  A map and its NPCs are part of the base (below): a reader of the base
+  alone sees every room whole, with the same NPCs in it. A curated or user
+  set may still amend an arena's map, as it may amend anything, but never
+  a level's. A dungeon's file also gives each of its levels, by UiMap id,
+  under `[level.<ui_map>]` (A dungeon's levels, below). `gen-rubric` writes
+  an instance file only when it is missing.
 - **The journal's text** is not in the repository. Blizzard's words stay
   out, like the extracted art. `gen-rubric` writes each encounter's text to
   a sidecar on this machine,
@@ -91,7 +96,8 @@ paths `<season>/<instance>/<file>` relative to it, laid as one block: its
 `season.toml`, its `instance.toml`, then the encounter's `<id>-<slug>.toml`,
 each over the last, and the whole block over everything under it. So a
 user's `season.toml` with `[defaults.view]` sets the view of every
-encounter of the season, over the draft and the instance's drawing.
+encounter of the season, over the draft and the instance's drawing (never a
+dungeon's level: a level is the base's alone).
 Such a set's `season.toml` gives only `[defaults]`, and its `instance.toml`
 only `[defaults]` and `[encounter.<id>]` (the tables an
 instance file gives): what a season or an instance is (its name, kind,
@@ -210,6 +216,16 @@ stencil = [                 # what of the room is worth drawing, world X and Y
 ]                           # order round it, or a circle; unsaid, all of it
 ppy = 16                    # pixels a yard the arena is rendered at; unsaid,
                             # the tool's 8 (a stenciled room has room for more)
+crop = [1510, -70, 1640, 70]   # the world box the render covers, x0 y0 x1 y1,
+                            # x0 < x1 and y0 < y1: the framing is wrong and a
+                            # stencil more than wanted
+include_groups = [79441]    # WMO group uids drawn though a rule leaves them out
+include_models = [7654321]  # model FileDataIDs drawn though a rule leaves them out
+ground = "walked"           # what a terrain level's ceiling is measured from:
+                            # "terrain", "walked" or a height in yards
+exposure = 1.2              # times the graded look's brightness; unsaid, 1
+transition = { after = 3, unit = "travel", port = "flash", port_yd = 40, camera = "glide" }
+                            # while the log is quiet (Transitions, below)
 
 [map.layer.starting-platform]   # a piece of the room a fight takes away
 wmo = 7549724
@@ -233,6 +249,36 @@ on = { event = "fountains-erupt" }   # it brightens each time; unsaid, never
 rise = 0.6                  # seconds it takes to brighten, holds and fades:
 hold = 2                    # these are the defaults
 fade = 2.5
+
+[map.fade.walkway]          # a piece drawn see-through rather than left out
+group = 79442               # one WMO group uid, or `model = <FileDataID>`
+alpha = 0.3                 # how much of it shows: above 0, under 1; one fade
+                            # a piece, and never a piece left out
+
+[map.area.platform]         # a place the camera knows (Areas, below)
+name = "The platform"
+shape = [{ center = [1575, 0], radius = 40 }]   # a stencil's shapes
+far = 1                     # its altitudes, times its fit: the furthest the
+home = 1.15                 # camera goes, where it rests, and the closest;
+near = 8                    # far ≤ home ≤ near, unsaid the view's
+turn = 0                    # degrees clockwise over it; unsaid, the view's
+ceiling = 25                # yards over the level drawn here; unsaid, the map's
+encounter = 3492            # the boss fought here (DungeonEncounterID)
+
+[map.path.from-the-corridor]   # a way between two of the map's areas (Paths)
+from = "corridor"           # area keys; it goes both ways
+to = "platform"
+mode = "run"                # run | mount | vehicle | leap
+width = 6                   # yards across; unsaid, single file
+speed = 9                   # yards a second; unsaid, the season's for its mode
+# spell = 1234567           # a leap's device's spell; only a leap names one
+points = [[1690, 0], [1640, 0]]   # its way, world X and Y, `from`'s end first;
+                            # unsaid, straight
+
+[travel]                    # the speeds a path goes at by its mode, from the
+run = 7                     # season's [defaults.travel]: yards a second on
+mount = 14                  # foot, mounted, and carried (unsaid, a vehicle is
+vehicle = 20                # timed to its next post)
 
 [view]                      # the replay's first look
 turn = 0                    # degrees clockwise; unsaid, derived
@@ -718,6 +764,127 @@ own numbers). A reader lays it over an encounter with
 Damage numbers are the tables' base points, which the game scales: compare
 them, do not quote them.
 
+## A dungeon's levels
+
+A raid's boss is fought in one room, drawn by its encounter's `[map]`. A
+keystone run goes through a dungeon's levels, each a map floor of its own
+(a UiMap), most of it far from any boss. The instance file gives each
+level by its UiMap id:
+
+```toml
+[level.2097.map]            # the same keys an encounter's [map] has
+floor = "algethar-academy-L1"   # the level's render in the floors cache
+
+[level.2097.map.area.vexamus-court]
+shape = [{ center = [1818, -2779], radius = 32 }]
+encounter = 2562
+
+[level.2097.map.area.arrival]
+shape = [{ center = [1995, -2900], radius = 15 }]
+
+[level.2097.map.path.arrival-to-vexamus]
+from = "arrival"
+to = "vexamus-court"
+points = [[1995, -2900], [1890, -2860], [1818, -2779]]
+
+[level.2097.view]           # what the replay shows while no area holds
+zoom = 1.15                 # the party
+
+[level.2097.travel]         # this level's speeds, over the season's
+run = 8
+```
+
+A level resolves as an encounter does, from fewer sources: the season's
+`[defaults]`, the instance's, then its own `[level.<ui_map>]`, each read
+for its `map`, `view` and `travel` alone. No difficulty applies to a
+level. Its `map.ui_map` is its key, and a map naming another is an error.
+`Rubric::level(ui_map)` answers one and `Rubric::levels()` lists them; a
+returning dungeon's newest season gives its levels, and two instances of
+one season giving a UiMap is an error. `crate::check_level` checks one as
+`check` does an encounter: a glow or a layer naming an event or a phase
+names one the level does not have.
+
+A level holds the same `Map` an encounter's does, so a reader draws a
+raid's arena and a dungeon's level with one type. A raid's arena keeps its
+`[encounter.<id>.map]` and `.view` and takes the same keys inside `.map`:
+Vashnik's hall is one area, its shape the stencil's and its altitudes the
+view's. An area's key may be an encounter's and a level's both; they are
+different tables.
+
+**A level is the base's alone.** The base gives every map whole: an
+arena's in its draft and its instance file's drawing, a level's in its own
+table, with their views, travel and areas. A level lives in the base's
+instance file alone: a curated or user set's instance file giving one is
+refused (`a level is the base's alone`), and a set's `[defaults]` (its
+`map`, `view` and `travel` with the rest) never reach a level, though they
+reach every arena. A set may still amend an arena's map and view, from its
+encounter file, its drawing or its defaults, as the layer stack lets a set
+amend anything. So the base stands alone by construction, and the embedded
+test holds it: every level resolves and checks with nothing over it, each
+area's `encounter` is one of its instance's, and a court's encounter is
+posted on its level (its map's `ui_map` is the level's key), with the
+exceptions it names: Echo of Doragosa, whose draft says 2099 while the log
+posts the fight on 2097.
+
+### Areas
+
+An area is a place of the floor the camera knows: a boss's court, a hall, a
+landing. Its `shape` is a stencil's shapes, joined, and never empty; its
+fit is the view that shows their bounds whole. Its altitudes are multiples
+of that fit: `far`, the furthest the camera goes over it; `home`, where it
+rests; and `near`, the closest. Unsaid, the floor's view gives them:
+`home` its `zoom` (else 1.15), `near` its `zoom_max` (else 8), `far` 1,
+the whole area. `Area::altitudes(&view)` fills them so, and a reader
+frames with that; `check` holds the filled three above 0 and in
+`far ≤ home ≤ near`, so `near = 0.8` alone (under the unsaid `far` 1) or
+`home = 10` alone (over the unsaid `near` 8) is an error. An area may turn
+the camera (`turn`), draw its own `ceiling` over the level, and name the
+boss fought in it (`encounter`), which makes it that boss's court; a map
+holds one court a boss. `Map::area_at` finds the area a point lies deepest
+inside.
+
+### Paths
+
+A path is a way between two areas of one floor (`from` and `to`, area
+keys), and goes both ways. Its `points` are the way, `from`'s end first;
+unsaid, it is straight. Its `mode` is how a party goes it:
+
+| Mode | Means | Speed, unsaid |
+| --- | --- | --- |
+| `run` (the default) | on foot | `[defaults.travel]` `run`, else 7 yd a second |
+| `mount` | on the players' own mounts | `mount`, else 14 |
+| `vehicle` | carried: a flight the instance gives, a boat, a cart | `vehicle`, else timed to its next post |
+| `leap` | thrown: a launcher, a jump pad, a drop | timed to its next post |
+
+A path's own `speed` overrides the season's; only a leap names a `spell`,
+its device's. `Path::speed_in` answers a path's speed given the travel its
+map reads. The season's speeds are a `[defaults.travel]` table beside
+`[defaults.map]` and `[defaults.view]`, so an encounter reads them as
+`travel` and a level does too, with an arena's own
+`[encounter.<id>.travel]` or a level's `[level.<ui_map>.travel]` over them.
+
+### Transitions
+
+What the replay does while the log is quiet about a unit, and as the party
+moves from one area to another, is the map's `transition`:
+
+- `after`: seconds without a post before a unit is quiet.
+- `unit`: what a quiet unit does. `hold`: it stays where it was last
+  posted, today's behavior. `fade`: a ghost of it stays at its last post.
+  `travel`: a solver routes it along the floor's paths (its areas and the
+  ways between them, a graph) from its last post to its next, timed to
+  arrive as the next post does, and draws it as a ghost on the way.
+- `port`, `port_yd`: a jump between two posts further than `port_yd`
+  yards apart (a portal, a teleport) is a port. `cut`: the unit is drawn
+  at its new post at once. `flash`: a flash where it left and where it
+  landed.
+- `camera`: what the camera does as the party moves to another area.
+  `hold`: it stays. `glide`: it eases over to the new area's `home`.
+  `cut`: it jumps there.
+
+Unsaid, each is today's: every unit held at its last post, the camera
+held.
+
 ## Who reads what
 
 - **`tools/gen-floors.sh`**: `[map]`, meaning the level, the ceiling, the
@@ -729,11 +896,19 @@ them, do not quote them.
   stencil makes the render cover its shapes alone, clear outside them past
   a yard's fade, with no minimap backdrop and `stencil = <shapes>` in the
   sidecar. Entombed Sentinels' went from 10082×10008 px to 1312×1232.
+  A level's `[map]` is read the same way, and the map's `crop`,
+  `include_groups`, `include_models`, `fade`, `ground`, `exposure` and an
+  area's `ceiling` are how a render frames and draws a floor.
+- **The map editor** (private, later) writes a level's and an arena's
+  `[map]`: its areas, paths and transition, and the render's tweaks.
+  Today they are written by hand.
 - **The replay** (today the spike): `[view]`, `[npc]` roles, icons and
   `still`, `[ability]` marks and `under`, `[place]`, `[ground]`, `[mark]`,
   `[line]`, `[volley]`, `[flash]`, `[range]`, `[apart]`, `[streak]`,
   `[room]`, `[reach]`, the layers' `breaks`, the glows' `on` and easing,
-  and the `[phase]` and `[event]` triggers they key on.
+  and the `[phase]` and `[event]` triggers they key on; and, from an
+  arena's map or a level's, its areas, paths, `transition` and `travel`,
+  and a level's `[view]`.
   Its mechanics timeline, its "Right now" panel and its list of what
   happened are built from those entries (the spike reads them itself until
   the interpretation does). `[spell]` gives the radius or duration an entry
