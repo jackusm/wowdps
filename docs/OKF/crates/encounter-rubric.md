@@ -95,6 +95,18 @@ that is not per encounter.
   lacks or has wrong (`INSTANCE_TABLES`). Any other table there, or an id
   with no files, is an error. A room should look and change the same, with
   the same NPCs in it, at every tier.
+- **A dungeon's level is a map too.** An instance file's
+  `[level.<ui_map>]` (`LEVEL_TABLES`: `map`, `view`, `travel`) resolves
+  over the season's and the instance's `[defaults]` alone, never a
+  difficulty or a set, into a `Level` holding the same `Map` an
+  encounter's does (`Rubric::level`, `levels`, `check_level`). Any map,
+  an arena's or a level's, may name its areas (with altitudes), the paths
+  between them (with a mode) and a `transition`, and the render's `crop`,
+  `include_*`, `fade`, `ground` and `exposure`: the vocabulary a map
+  editor writes ([Give The Map A Vocabulary Per Level And Per Area](../decisions/map-vocabulary-per-level-and-area.md)).
+  `gate_map` gates every map's named entries, and
+  `fixtures/resolved-maps.txt` holds every encounter's map and view to
+  what they resolved to before.
 - **Typos are errors.** Every struct is `deny_unknown_fields`, and errors
   carry the encounter's file. `check` (its own module, a method per
   section) reports names an encounter uses but does not have: an
