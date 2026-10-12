@@ -2234,7 +2234,7 @@ fn every_map_and_view_resolves_as_before_the_map_vocabulary() {
         }
     }
     // The encounters whose maps gained areas since, by their keys.
-    let gained: BTreeMap<u32, Vec<&str>> = BTreeMap::new();
+    let gained: BTreeMap<u32, Vec<&str>> = [(3455, vec!["hall"])].into();
     let r = Rubric::embedded().unwrap_or_else(|e| panic!("{}", e.join("\n")));
     let mut out = String::new();
     for (id, _, _) in r.encounters() {
@@ -2652,6 +2652,7 @@ fn the_embedded_rubric_resolves_and_checks_every_level() {
             .collect()
     };
     let levels = r.levels();
+    assert!(levels.len() >= 7, "{} levels", levels.len());
     for (ui_map, s, i) in levels {
         match r.level(ui_map) {
             Some(Ok(l)) => {
