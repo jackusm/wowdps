@@ -19,7 +19,9 @@ difficulty at one tier, plus the replay's art formats (`floor`,
   glows, rooms, places and the events they break on) and any NPC the draft
   lacks or has wrong live in its instance's `instance.toml`
   (`[encounter.<id>.map]`, `.view`, `.npc`). A room looks and changes the
-  same at every tier.
+  same at every tier. So is a dungeon level (`[level.<ui_map>]`: the same
+  `Map`, a `View`, `travel`), which no curated or user set may give, and
+  an arena's or a level's areas, paths and transition.
 - **Drafts and `placed` are generated** on the replay branch
   (`tools/gen-rubric.sh`, `tools/gen-placed-spells.sh` live there) and
   committed here. Never hand-edit a `*.draft.toml` or
