@@ -48,10 +48,12 @@ name = "Echo of Doragosa's court"
 shape = [{ center = [1480, -3194], radius = 50 }]
 encounter = 2565
 
-# The first 470 yd went at 11 yd a second: a run with speed (a guess).
+# The first 470 yd went at 11 yd a second on the run that has them, faster
+# than the season's run: the path keeps that pace (a run with speed is a guess).
 [level.2097.map.path.entrance-to-ancient]
 from = "entrance"
 to = "overgrown-ancient-court"
+speed = 11
 points = [[1410, -2772], [1790, -3056], [1762, -3086]]
 
 [level.2097.map.path.ancient-to-departure]
